@@ -1,3 +1,12 @@
+---
+markmap:
+  colorFreezeLevel: 2
+  color:
+    - '#f5c842'
+    - '#4dd9a4'
+    - '#60a5fa'
+---
+
 # job-hunt
 
 ## Done

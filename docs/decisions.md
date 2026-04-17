@@ -48,7 +48,7 @@ job-hunt
 ### How to generate the mindmap
 ```bash
 npm install -g markmap-cli
-markmap doc/mindmap.md --no-open -o assets/mindmap.svg
+markmap markmap docs/mindmap.md -o assets/mindmap.html
 ```
 
 ## Architecture decisions

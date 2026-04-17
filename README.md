@@ -4,7 +4,7 @@ A local-first tool for engineers actively interviewing.
 
 Two core problems solved: keeping track of applications without losing motivation, and turning real interview questions into a systematic study loop.
 
-![mindmap](assets/mindmap.svg)
+[View mindmap](assets/mindmap.html)
 
 ## Why
 
