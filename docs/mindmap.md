@@ -20,6 +20,7 @@ markmap:
   - Transcript → questions (Groq)
   - Markdown file import
   - Manual entry
+  - Note field per question
 - Quiz · spaced repetition
   - SM-2 algorithm
   - Filter by company / type

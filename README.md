@@ -30,7 +30,7 @@ Every interview question in one place. Three ways to add:
 - **Markdown import** — load any `.md` file, AI understands the structure regardless of format
 - **Manual entry** — single question form
 
-Each question stores: question text, your answer notes, type (behavioral / system design / coding / other), source (real / mock), linked application, self-score (1–3), and round name. Real questions link back to the specific application and round they came from. Mock questions are standalone practice material.
+Each question stores: question text, your answer notes, type (behavioral / system design / coding / other), source (real / mock), linked application, self-score (1–3), round name, and a notes field for improvement reminders. Real questions link back to the specific application and round they came from. Mock questions are standalone practice material.
 
 **Quiz · spaced repetition**
 SM-2 algorithm (same as Anki). Questions due for review surface first. Weak questions appear more frequently. Filter by company, type, or source. Rate each answer Weak / Ok / Strong to update the next review interval automatically.

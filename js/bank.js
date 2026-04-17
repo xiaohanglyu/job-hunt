@@ -6,16 +6,14 @@ function qaCardHTML(q) {
   const isMock = q.source === 'mock';
   return `<div class="qa-card ${isMock ? 'source-mock' : ''}" data-id="${q.id}" onclick="toggleAns('${q.id}')">
     <div class="qa-q">${esc(q.q)}</div>
-    <div class="qa-ans" id="ans-${q.id}">${q.a ? `<div>${esc(q.a)}</div>` : '<span style="color:var(--t3);font-style:italic;font-size:12px">No answer recorded</span>'}</div>
+    <div class="qa-ans" id="ans-${q.id}">${q.a ? `<div>${esc(q.a)}</div>` : '<span style="color:var(--t3);font-style:italic;font-size:12px">No answer recorded</span>'}${q.note ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--b2);font-size:12px;color:var(--t2)"><span style="color:var(--t3);font-style:italic">Notes: </span>${esc(q.note)}</div>` : ''}</div>
     <div class="qa-foot">
       <span class="tag ${tClass}">${tLabel}</span>
       <span class="tag ${isMock ? 'tag-mock' : 'tag-real'}">${isMock ? 'mock' : 'real'}</span>
       ${app ? `<span class="tag tag-co">${esc(app.company)}</span>` : ''}
       ${q.round ? `<span class="tag tag-co">${esc(q.round)}</span>` : ''}
-      <div class="score-dots" onclick="event.stopPropagation()">
-        ${[1, 2, 3].map(i => `<span class="sdot ${(q.score || 0) >= i ? 'on' : ''}" onclick="setScore('${q.id}',${i})"></span>`).join('')}
-      </div>
-      <button class="btn-icon" style="font-size:12px" onclick="event.stopPropagation();openEditQ('${q.id}')">✎</button>
+      <span class="score-chip score-${q.score||0}" onclick="event.stopPropagation();cycleScore('${q.id}')">${scoreChipLabel(q.score||0)}</span>
+      <button class="btn-icon" style="font-size:15px;color:var(--t2)" onclick="event.stopPropagation();openEditQ('${q.id}')">✎</button>
       <button class="btn-icon" style="font-size:12px;color:var(--coral)" onclick="event.stopPropagation();confirmDeleteQ('${q.id}')">✕</button>
     </div>
   </div>`;
@@ -23,9 +21,19 @@ function qaCardHTML(q) {
 
 function toggleAns(id) { document.getElementById('ans-' + id)?.classList.toggle('show'); }
 
-function setScore(id, score) {
-  dbUpdateQuestion(id, { score });
-  document.querySelectorAll(`.qa-card[data-id="${id}"] .sdot`).forEach((d, i) => d.classList.toggle('on', i < score));
+function scoreChipLabel(s) {
+  if (s === 1) return 'Weak';
+  if (s === 2) return 'Ok';
+  if (s === 3) return 'Strong';
+  return '·';
+}
+
+function cycleScore(id) {
+  const q = dbGetQuestion(id); if (!q) return;
+  const next = ((q.score || 0) + 1) % 4;
+  dbUpdateQuestion(id, { score: next });
+  const chip = document.querySelector(`.qa-card[data-id="${id}"] .score-chip`);
+  if (chip) { chip.className = `score-chip score-${next}`; chip.textContent = scoreChipLabel(next); }
 }
 
 function confirmDeleteQ(id) {
@@ -63,6 +71,7 @@ function openAddQ(appId = '') {
   document.getElementById('q-score').value = '0';
   document.getElementById('q-round').value = '';
   document.getElementById('q-source').value = appId ? 'real' : 'mock';
+  document.getElementById('q-note').value = '';
   populateAppSelect('q-app', appId);
   openModal('modal-q');
 }
@@ -77,6 +86,7 @@ function openEditQ(id) {
   document.getElementById('q-score').value = q.score || 0;
   document.getElementById('q-round').value = q.round || '';
   document.getElementById('q-source').value = q.source || 'real';
+  document.getElementById('q-note').value = q.note || '';
   populateAppSelect('q-app', q.appId || '');
   openModal('modal-q');
 }
@@ -92,6 +102,7 @@ function saveQ() {
     score: parseInt(document.getElementById('q-score').value) || 0,
     round: document.getElementById('q-round').value.trim(),
     source: document.getElementById('q-source').value,
+    note: document.getElementById('q-note').value.trim(),
   };
   if (id) { dbUpdateQuestion(id, data); }
   else { dbAddQuestion(data); }
