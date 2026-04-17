@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>job-hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<nav>
+  <span class="logo">job<em>/</em>hunt</span>
+  <div class="tabs">
+    <button class="tab on" onclick="showPage('board')">Board</button>
+    <button class="tab" onclick="showPage('bank')">Q&amp;A Bank</button>
+    <button class="tab" onclick="showPage('quiz')">Quiz</button>
+    <button class="tab" onclick="showPage('practice')">Practice</button>
+  </div>
+  <div class="nav-r">
+    <span class="stats-pill" id="stats-pill">0 apps</span>
+    <button class="btn btn-ghost btn-sm" onclick="dbExport()">Export</button>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer">Import
+      <input type="file" accept=".json" onchange="handleImport(event)" style="display:none">
+    </label>
+  </div>
+</nav>
+
+<!-- BOARD -->
+<div class="page on" id="page-board">
+  <div class="board" id="board"></div>
+</div>
+
+<!-- Q&A BANK -->
+<div class="page" id="page-bank">
+  <div class="qa-toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="search-input" id="search-q" placeholder="Search questions..." oninput="renderBank()">
+    </div>
+    <select class="fsel" id="f-type" onchange="renderBank()">
+      <option value="">All types</option>
+      <option value="behavioral">Behavioral</option>
+      <option value="system">System design</option>
+      <option value="coding">Coding</option>
+      <option value="other">Other</option>
+    </select>
+    <select class="fsel" id="f-source" onchange="renderBank()">
+      <option value="">All sources</option>
+      <option value="real">Real</option>
+      <option value="mock">Mock</option>
+    </select>
+    <select class="fsel" id="f-score" onchange="renderBank()">
+      <option value="">All scores</option>
+      <option value="0">Not rated</option>
+      <option value="1">Weak</option>
+      <option value="2">Ok</option>
+      <option value="3">Strong</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="openImport()">Import</button>
+    <button class="btn btn-accent btn-sm" onclick="openAddQ()">+ Question</button>
+  </div>
+  <div class="qa-grid" id="qa-grid"></div>
+</div>
+
+<!-- QUIZ -->
+<div class="page" id="page-quiz">
+  <div class="quiz-wrap">
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <select class="fsel" id="qz-type" onchange="initQuiz()">
+        <option value="">All types</option>
+        <option value="behavioral">Behavioral</option>
+        <option value="system">System design</option>
+        <option value="coding">Coding</option>
+        <option value="other">Other</option>
+      </select>
+      <select class="fsel" id="qz-app" onchange="initQuiz()">
+        <option value="">All companies</option>
+      </select>
+      <select class="fsel" id="qz-source" onchange="initQuiz()">
+        <option value="">All sources</option>
+        <option value="real">Real</option>
+        <option value="mock">Mock</option>
+      </select>
+      <button class="btn btn-accent btn-sm" onclick="initQuiz()">Start</button>
+    </div>
+    <div id="quiz-area"></div>
+  </div>
+</div>
+
+<!-- PRACTICE -->
+<div class="page" id="page-practice">
+  <div class="practice-wrap">
+    <div id="practice-area"></div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="page" id="page-detail">
+  <div id="detail-content"></div>
+</div>
+
+<!-- MODAL: ADD APP -->
+<div class="overlay" id="modal-app">
+  <div class="modal">
+    <div class="modal-title"><span id="modal-app-title">Add application</span><button class="modal-close" onclick="closeModal('modal-app')">×</button></div>
+    <input type="hidden" id="ea-id">
+    <div class="fg" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label class="fl" style="margin-bottom:0">Paste JD to autofill</label>
+        <button class="btn-icon" style="font-size:11px;padding:2px 6px" onclick="toggleJdBox()" id="jd-toggle">expand ↓</button>
+      </div>
+      <div id="jd-box" style="display:none">
+        <textarea class="ft" id="a-jd" style="min-height:110px;margin-bottom:8px" placeholder="Paste the full job description here..."></textarea>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-ghost btn-sm" id="btn-jd-parse" onclick="parseJD()">Autofill from JD</button>
+          <span id="jd-status" style="font-size:12px;color:var(--t3)"></span>
+        </div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--b1);margin-bottom:14px"></div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Company</label><input class="fi" id="a-company" placeholder="lululemon"></div>
+      <div class="fg"><label class="fl">Position</label><input class="fi" id="a-role" placeholder="Senior Backend Engineer"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Location</label><input class="fi" id="a-location" placeholder="Vancouver, BC"></div>
+      <div class="fg"><label class="fl">Work model</label>
+        <select class="fs" id="a-workmodel"><option value="">—</option><option>Remote</option><option>Hybrid</option><option>On-site</option></select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Salary range</label><input class="fi" id="a-salary" placeholder="120k–150k CAD"></div>
+      <div class="fg"><label class="fl">Status</label>
+        <select class="fs" id="a-status">
+          <option value="applied">Applied</option><option value="phone">Phone screen</option>
+          <option value="tech">Technical</option><option value="onsite">Onsite</option>
+          <option value="offer">Offer</option><option value="rejected">Rejected</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Applied date</label><input class="fi" id="a-date" type="date"></div>
+      <div class="fg"><label class="fl">Resume version</label><input class="fi" id="a-resumev" placeholder="v3-lululemon-backend"></div>
+    </div>
+    <div class="fg"><label class="fl">Job link</label><input class="fi" id="a-joblink" placeholder="https://..."></div>
+    <div class="fg"><label class="fl">Resume link (Google Drive)</label><input class="fi" id="a-resumelink" placeholder="https://docs.google.com/..."></div>
+    <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="a-notes" placeholder="Referral? Recruiter? Anything relevant..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-app')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveApp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD ROUND -->
+<div class="overlay" id="modal-round">
+  <div class="modal">
+    <div class="modal-title">Add interview round<button class="modal-close" onclick="closeModal('modal-round')">×</button></div>
+    <input type="hidden" id="r-appid">
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Round name</label><input class="fi" id="r-name" placeholder="Technical round 1" list="round-name-options"><datalist id="round-name-options"><option value="Recruiter screen"><option value="Hiring manager screen"><option value="Technical round 1"><option value="Technical round 2"><option value="System design"><option value="Onsite"><option value="Final round"></datalist></div>
+      <div class="fg"><label class="fl">Date</label><input class="fi" id="r-date" type="date"></div>
+    </div>
+    <div class="fg"><label class="fl">Outcome</label>
+      <select class="fs" id="r-outcome"><option value="pending">Pending</option><option value="passed">Passed</option><option value="failed">Failed</option></select>
+    </div>
+    <div class="fg"><label class="fl">Your notes</label><textarea class="ft" id="r-notes" placeholder="What went well, observations..."></textarea></div>
+    <div class="fg"><label class="fl">Interviewer feedback</label><textarea class="ft" id="r-feedback" placeholder="Feedback received from the interviewer or recruiter..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-round')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveRound()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD INTERVIEWER -->
+<div class="overlay" id="modal-iw">
+  <div class="modal">
+    <div class="modal-title">Add interviewer<button class="modal-close" onclick="closeModal('modal-iw')">×</button></div>
+    <input type="hidden" id="iw-appid">
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Name</label><input class="fi" id="iw-name" placeholder="Jane Smith"></div>
+      <div class="fg"><label class="fl">Title</label><input class="fi" id="iw-title" placeholder="Staff Engineer"></div>
+    </div>
+    <div class="fg"><label class="fl">LinkedIn URL</label><input class="fi" id="iw-li" placeholder="https://linkedin.com/in/..."></div>
+    <div class="fg"><label class="fl">Style notes</label><textarea class="ft" id="iw-notes" placeholder="Focused on system design depth, asked follow-ups on trade-offs..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-iw')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveIw()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD QUESTION -->
+<div class="overlay" id="modal-q">
+  <div class="modal">
+    <div class="modal-title"><span id="modal-q-title">Add question</span><button class="modal-close" onclick="closeModal('modal-q')">×</button></div>
+    <input type="hidden" id="q-id">
+    <div class="fg"><label class="fl">Question</label><textarea class="ft" id="q-q" style="min-height:80px" placeholder="Tell me about a time..."></textarea></div>
+    <div class="fg"><label class="fl">Your answer / notes</label><textarea class="ft" id="q-a" style="min-height:90px" placeholder="STAR story, key points..."></textarea></div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Type</label>
+        <select class="fs" id="q-type"><option value="behavioral">Behavioral</option><option value="system">System design</option><option value="coding">Coding</option><option value="other">Other</option></select>
+      </div>
+      <div class="fg"><label class="fl">Source</label>
+        <select class="fs" id="q-source"><option value="real">Real interview</option><option value="mock">Mock / practice</option></select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label class="fl">Application</label><select class="fs" id="q-app"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Round</label><input class="fi" id="q-round" placeholder="Technical round 1"></div>
+    </div>
+    <div class="fg"><label class="fl">Self score</label>
+      <select class="fs" id="q-score"><option value="0">Not rated</option><option value="1">1 – Weak</option><option value="2">2 – Ok</option><option value="3">3 – Strong</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-q')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveQ()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: IMPORT -->
+<div class="overlay" id="modal-import">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title">Import questions<button class="modal-close" onclick="closeModal('modal-import')">×</button></div>
+    <div class="import-tabs">
+      <button class="import-tab on" onclick="switchImportTab('transcript')">Transcript</button>
+      <button class="import-tab" onclick="switchImportTab('markdown')">Markdown file</button>
+    </div>
+    <div class="import-pane on" id="pane-transcript">
+      <div class="fg"><label class="fl">Paste transcript</label><textarea class="ft" id="imp-transcript" style="min-height:140px" placeholder="Interviewer: Tell me about yourself...&#10;Candidate: Sure..."></textarea></div>
+      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-t"><option value="">None</option></select></div>
+      <button class="btn btn-accent" id="btn-extract" onclick="extractTranscript()">Extract questions</button>
+    </div>
+    <div class="import-pane" id="pane-markdown">
+      <div class="fg"><label class="fl">Markdown file</label><input type="file" accept=".md,.txt" id="md-file" onchange="readMdFile(event)" style="font-size:12px;color:var(--t2)"></div>
+      <div class="fg" id="md-preview-wrap" style="display:none"><label class="fl">Preview</label><textarea class="ft" id="md-preview" style="min-height:80px;font-family:var(--mono);font-size:11px" readonly></textarea></div>
+      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-md"><option value="">None</option></select></div>
+      <button class="btn btn-accent" id="btn-extract-md" onclick="extractMarkdown()" disabled>Extract questions</button>
+    </div>
+    <div id="import-results" style="display:none;margin-top:18px;border-top:1px solid var(--b1);padding-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600">Extracted questions</span>
+        <span style="font-size:11px;color:var(--t3)" id="imp-count"></span>
+      </div>
+      <div id="imp-q-list"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+        <span style="font-size:12px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="toggleSelectAll()">Deselect all</span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:var(--t3)" id="imp-sel-count"></span>
+          <button class="btn btn-accent btn-sm" onclick="importSelected()">Import selected</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- CONFIG (user creates this file) -->
+<script src="config.js"></script>
+
+<!-- MODULES -->
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/board.js"></script>
+<script src="js/bank.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/practice.js"></script>
+
+<script>
+// ── NAVIGATION ────────────────────────────────────────
+const PAGE_LABELS = { board: 'Board', bank: 'Q&A Bank', quiz: 'Quiz', practice: 'Practice' };
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('page-' + id).classList.add('on');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.trim() === PAGE_LABELS[id]) t.classList.add('on');
+  });
+  if (id === 'bank') renderBank();
+  if (id === 'quiz') { populateQuizFilters(); initQuiz(); }
+  if (id === 'practice') initPractice();
+  updateStats();
+}
+
+// close overlays on backdrop click
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => {
+  if (e.target === o) o.classList.remove('on');
+}));
+
+// ── IMPORT JSON ───────────────────────────────────────
+function handleImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      dbImport(JSON.parse(ev.target.result));
+      renderBoard(); renderBank(); updateStats();
+      toast(`Imported: ${dbGetApps().length} apps, ${dbGetQuestions().length} questions`);
+    } catch { toast('Import failed: invalid file', 'error'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── INIT ──────────────────────────────────────────────
+renderBoard();
+updateStats();
+</script>
+</body>
+</html>
