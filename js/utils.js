@@ -57,6 +57,14 @@ function parseJSON(text) {
   return JSON.parse(text.replace(/```json|```/g, '').trim());
 }
 
+async function extractTags(questionText) {
+  try {
+    const raw = await callGroq(`Extract tags from this interview question: specific technologies AND underlying CS concepts being tested. Lowercase, hyphenated. Return only JSON, no explanation: {"tags": []}
+Question: ${questionText}`);
+    return parseJSON(raw).tags || [];
+  } catch { return []; }
+}
+
 // Azure TTS
 async function ttsSpeak(text) {
   const provider = (typeof CONFIG !== 'undefined' && CONFIG.ttsProvider) || 'webspeech';

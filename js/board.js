@@ -22,10 +22,38 @@ function renderBoard() {
       const qc = dbGetQuestions({ appId: app.id }).length;
       const c = document.createElement('div');
       c.className = 'card';
+      c.draggable = true;
+      c.dataset.appId = app.id;
       c.innerHTML = `<div class="card-co">${esc(app.company)}</div><div class="card-role">${esc(app.role || '—')}</div><div class="card-foot"><span class="chip chip-date">${app.date || '—'}</span>${qc ? `<span class="chip chip-q">${qc}Q</span>` : ''}</div>`;
       c.onclick = () => showDetail(app.id);
+      c.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', app.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => c.classList.add('card-dragging'), 0);
+      });
+      c.addEventListener('dragend', () => c.classList.remove('card-dragging'));
       cards.appendChild(c);
     });
+    cards.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      cards.classList.add('col-cards-over');
+    });
+    cards.addEventListener('dragleave', e => {
+      if (!cards.contains(e.relatedTarget)) cards.classList.remove('col-cards-over');
+    });
+    cards.addEventListener('drop', e => {
+      e.preventDefault();
+      cards.classList.remove('col-cards-over');
+      const appId = e.dataTransfer.getData('text/plain');
+      const app = dbGetApp(appId);
+      if (app && app.status !== col.id) {
+        dbUpdateApp(appId, { status: col.id });
+        renderBoard();
+        updateStats();
+      }
+    });
+
     const add = document.createElement('button');
     add.className = 'card-add';
     add.textContent = '+ Add';
@@ -70,8 +98,9 @@ function showDetail(appId) {
   <div style="margin-bottom:24px">
     <div class="section-row"><span class="section-label">Interview rounds</span><button class="btn btn-ghost btn-sm" onclick="openAddRound('${appId}')">+ Round</button></div>
     ${rounds.length ? rounds.map(r => `<div class="round-card">
-      <div class="round-head"><span class="round-name">${esc(r.name)}</span><span class="round-date">${r.date || ''}</span>
-      <span class="chip" style="margin-left:auto;background:${r.outcome === 'passed' ? 'rgba(77,217,164,.12)' : r.outcome === 'failed' ? 'rgba(244,124,106,.12)' : 'var(--s3)'};color:${r.outcome === 'passed' ? 'var(--teal)' : r.outcome === 'failed' ? 'var(--coral)' : 'var(--t3)'}">${r.outcome}</span></div>
+      <div class="round-head"><span class="round-name" style="cursor:pointer" data-fr="${esc(r.name)}" data-fa="${appId}" onclick="jumpToBank({appId:this.dataset.fa,round:this.dataset.fr})" title="View questions for this round">${esc(r.name)}</span><span class="round-date">${r.date || ''}</span>
+      <span class="chip" style="margin-left:auto;background:${r.outcome === 'passed' ? 'rgba(77,217,164,.12)' : r.outcome === 'failed' ? 'rgba(244,124,106,.12)' : 'var(--s3)'};color:${r.outcome === 'passed' ? 'var(--teal)' : r.outcome === 'failed' ? 'var(--coral)' : 'var(--t3)'}">${r.outcome}</span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openEditRound('${appId}','${r.id}')">Edit</button></div>
       ${r.notes ? `<div style="font-size:12px;color:var(--t2);margin-bottom:6px">${esc(r.notes)}</div>` : ''}
       ${r.feedback ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--b1)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:4px">Interviewer feedback</div><div style="font-size:12px;color:var(--t2)">${esc(r.feedback)}</div></div>` : ''}
     </div>`).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">No rounds yet</div>'}
@@ -198,7 +227,9 @@ Job description:\n${jd.slice(0, 4000)}`);
 
 // ── ROUND CRUD ────────────────────────────────────────
 function openAddRound(appId) {
+  document.getElementById('modal-round-title').textContent = 'Add interview round';
   document.getElementById('r-appid').value = appId;
+  document.getElementById('r-round-id').value = '';
   document.getElementById('r-name').value = '';
   document.getElementById('r-date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('r-outcome').value = 'pending';
@@ -207,19 +238,40 @@ function openAddRound(appId) {
   openModal('modal-round');
 }
 
+function openEditRound(appId, roundId) {
+  const app = dbGetApp(appId); if (!app) return;
+  const r = (app.rounds || []).find(x => x.id === roundId); if (!r) return;
+  document.getElementById('modal-round-title').textContent = 'Edit interview round';
+  document.getElementById('r-appid').value = appId;
+  document.getElementById('r-round-id').value = roundId;
+  document.getElementById('r-name').value = r.name || '';
+  document.getElementById('r-date').value = r.date || '';
+  document.getElementById('r-outcome').value = r.outcome || 'pending';
+  document.getElementById('r-notes').value = r.notes || '';
+  document.getElementById('r-feedback').value = r.feedback || '';
+  openModal('modal-round');
+}
+
 function saveRound() {
   const appId = document.getElementById('r-appid').value;
+  const roundId = document.getElementById('r-round-id').value;
   const app = dbGetApp(appId); if (!app) return;
   const name = document.getElementById('r-name').value.trim();
   if (!name) { toast('Round name required'); return; }
-  if (!app.rounds) app.rounds = [];
-  app.rounds.push({
-    id: uid(), name, date: document.getElementById('r-date').value,
+  const data = {
+    name, date: document.getElementById('r-date').value,
     outcome: document.getElementById('r-outcome').value,
     notes: document.getElementById('r-notes').value.trim(),
     feedback: document.getElementById('r-feedback').value.trim(),
-  });
-  dbSave(); closeModal('modal-round'); showDetail(appId); toast('Round added');
+  };
+  if (!app.rounds) app.rounds = [];
+  if (roundId) {
+    const idx = app.rounds.findIndex(x => x.id === roundId);
+    if (idx !== -1) app.rounds[idx] = { ...app.rounds[idx], ...data };
+  } else {
+    app.rounds.push({ id: uid(), ...data });
+  }
+  dbSave(); closeModal('modal-round'); showDetail(appId); toast(roundId ? 'Round updated' : 'Round added');
 }
 
 // ── INTERVIEWER CRUD ──────────────────────────────────

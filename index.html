@@ -39,6 +39,12 @@
       <span class="search-icon">⌕</span>
       <input class="search-input" id="search-q" placeholder="Search questions..." oninput="renderBank()">
     </div>
+    <select class="fsel" id="f-app" onchange="onBankAppChange()">
+      <option value="">All companies</option>
+    </select>
+    <select class="fsel" id="f-round" onchange="renderBank()">
+      <option value="">All rounds</option>
+    </select>
     <select class="fsel" id="f-type" onchange="renderBank()">
       <option value="">All types</option>
       <option value="behavioral">Behavioral</option>
@@ -58,8 +64,16 @@
       <option value="2">Ok</option>
       <option value="3">Strong</option>
     </select>
-    <button class="btn btn-ghost btn-sm" onclick="openImport()">Import</button>
+    <button class="btn btn-ghost btn-sm" onclick="openAutoTag()">Auto-tag</button>
+    <button class="btn btn-ghost btn-sm" style="border-color:var(--b3)" onclick="openImport()">Import</button>
     <button class="btn btn-accent btn-sm" onclick="openAddQ()">+ Question</button>
+  </div>
+  <div id="bulk-bar" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);margin-bottom:12px;flex-wrap:wrap">
+    <span id="bulk-count" style="font-size:13px;color:var(--t2);font-weight:500"></span>
+    <input class="fi" id="bulk-round" placeholder="Round name" list="bulk-round-options" style="width:180px;flex-shrink:0">
+    <datalist id="bulk-round-options"></datalist>
+    <button class="btn btn-accent btn-sm" onclick="applyBulkRound()">Set round</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearBankSelection()">Clear selection</button>
   </div>
   <div class="qa-grid" id="qa-grid"></div>
 </div>
@@ -157,8 +171,9 @@
 <!-- MODAL: ADD ROUND -->
 <div class="overlay" id="modal-round">
   <div class="modal">
-    <div class="modal-title">Add interview round<button class="modal-close" onclick="closeModal('modal-round')">×</button></div>
+    <div class="modal-title"><span id="modal-round-title">Add interview round</span><button class="modal-close" onclick="closeModal('modal-round')">×</button></div>
     <input type="hidden" id="r-appid">
+    <input type="hidden" id="r-round-id">
     <div class="fg-row">
       <div class="fg"><label class="fl">Round name</label><input class="fi" id="r-name" placeholder="Technical round 1" list="round-name-options"><datalist id="round-name-options"><option value="Recruiter screen"><option value="Hiring manager screen"><option value="Technical round 1"><option value="Technical round 2"><option value="System design"><option value="Onsite"><option value="Final round"></datalist></div>
       <div class="fg"><label class="fl">Date</label><input class="fi" id="r-date" type="date"></div>
@@ -209,13 +224,18 @@
       </div>
     </div>
     <div class="fg-row">
-      <div class="fg"><label class="fl">Application</label><select class="fs" id="q-app"><option value="">None</option></select></div>
-      <div class="fg"><label class="fl">Round</label><input class="fi" id="q-round" placeholder="Technical round 1"></div>
+      <div class="fg"><label class="fl">Application</label><select class="fs" id="q-app" onchange="updateQRoundDatalist(this.value)"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Round</label><input class="fi" id="q-round" placeholder="Technical round 1" list="q-round-options"><datalist id="q-round-options"></datalist></div>
     </div>
     <div class="fg"><label class="fl">Self score</label>
       <select class="fs" id="q-score"><option value="0">Not rated</option><option value="1">1 – Weak</option><option value="2">2 – Ok</option><option value="3">3 – Strong</option></select>
     </div>
     <div class="fg"><label class="fl">Notes</label><textarea class="ft" id="q-note" style="min-height:60px" placeholder="What to improve next time..."></textarea></div>
+    <div class="fg">
+      <label class="fl">Tags</label>
+      <div id="q-tags-wrap" style="display:flex;flex-wrap:wrap;gap:5px;min-height:24px;margin-bottom:6px"></div>
+      <input class="fi" id="q-tag-input" placeholder="Type a tag and press Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addQTag()}">
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-q')">Cancel</button>
       <button class="btn btn-accent" onclick="saveQ()">Save</button>
@@ -233,13 +253,15 @@
     </div>
     <div class="import-pane on" id="pane-transcript">
       <div class="fg"><label class="fl">Paste transcript</label><textarea class="ft" id="imp-transcript" style="min-height:140px" placeholder="Interviewer: Tell me about yourself...&#10;Candidate: Sure..."></textarea></div>
-      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-t"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-t" onchange="updateImportRound('t')"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Round (optional)</label><div id="imp-round-t"></div></div>
       <button class="btn btn-accent" id="btn-extract" onclick="extractTranscript()">Extract questions</button>
     </div>
     <div class="import-pane" id="pane-markdown">
       <div class="fg"><label class="fl">Markdown file</label><input type="file" accept=".md,.txt" id="md-file" onchange="readMdFile(event)" style="font-size:12px;color:var(--t2)"></div>
       <div class="fg" id="md-preview-wrap" style="display:none"><label class="fl">Preview</label><textarea class="ft" id="md-preview" style="min-height:80px;font-family:var(--mono);font-size:11px" readonly></textarea></div>
-      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-md"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Link to application (optional)</label><select class="fs" id="imp-app-md" onchange="updateImportRound('md')"><option value="">None</option></select></div>
+      <div class="fg"><label class="fl">Round (optional)</label><div id="imp-round-md"></div></div>
       <button class="btn btn-accent" id="btn-extract-md" onclick="extractMarkdown()" disabled>Extract questions</button>
     </div>
     <div id="import-results" style="display:none;margin-top:18px;border-top:1px solid var(--b1);padding-top:16px">
@@ -250,10 +272,30 @@
       <div id="imp-q-list"></div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
         <span style="font-size:12px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="toggleSelectAll()">Deselect all</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t3);cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="imp-autotag"> Auto-tag with AI
+        </label>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--t3)" id="imp-sel-count"></span>
           <button class="btn btn-accent btn-sm" onclick="importSelected()">Import selected</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: AUTO-TAG -->
+<div class="overlay" id="modal-autotag">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Auto-tag questions<button class="modal-close" onclick="closeModal('modal-autotag')">×</button></div>
+    <div id="autotag-list" style="max-height:360px;overflow-y:auto;margin-bottom:4px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+      <span id="autotag-toggle-all" style="font-size:12px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="toggleAutoTagAll()">Deselect all</span>
+      <span id="autotag-sel-count" style="font-size:12px;color:var(--t3)"></span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span id="autotag-progress" style="font-size:12px;color:var(--t3)"></span>
+        <button class="btn btn-ghost" onclick="closeModal('modal-autotag')">Cancel</button>
+        <button class="btn btn-accent" id="btn-autotag-run">Tag selected</button>
       </div>
     </div>
   </div>
